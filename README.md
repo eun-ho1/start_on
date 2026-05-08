@@ -1,17 +1,48 @@
-# ad_focus
+# Start On
 
-A new Flutter project.
+`Start On` is a Flutter-based productivity app with a FastAPI backend. It helps users turn goals into manageable quests, run focused timers, and connect external sources such as OCR text, Notion, and backend-driven quest generation.
 
-## Getting Started
+## Project Structure
 
-This project is a starting point for a Flutter application.
+- `lib/`: Flutter application source
+- `backend/`: FastAPI backend
+- `test/`: Flutter tests
 
-A few resources to get you started if this is your first Flutter project:
+## Main Features
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+- Quest creation and management
+- Focus timer workflow
+- OCR-based quest extraction
+- Notion sync support
+- Backend API integration
+- Supabase-ready data flow
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Run The Flutter App
+
+```bash
+flutter pub get
+flutter run
+```
+
+## Run The Backend
+
+Backend setup and API examples are documented in [backend/README.md](backend/README.md).
+
+Quick start:
+
+```bash
+cd backend
+.\.venv311\Scripts\python.exe -m pip install -r requirements.txt
+.\run_backend.ps1
+```
+
+## Environment
+
+- Flutter SDK
+- Dart SDK `^3.11.4`
+- Python virtual environment for `backend/`
+
+## Notes
+
+- The Android emulator uses `http://10.0.2.2:8000` to reach the local backend.
+- Backend environment variables can be based on `backend/.env.example`.
