@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:start_on/pages/add_quest_screen.dart';
+import 'package:start_on/dialogs/add_quest_dialog.dart';
 import 'package:start_on/models/quest_category.dart';
 import 'package:start_on/models/quest_item.dart';
 import 'package:start_on/services/quest_candidate_generator.dart';
@@ -430,10 +430,10 @@ class _AutoQuestFromGalleryScreenState
   }
 
   Future<void> _addManualCandidate() async {
-    final quest = await Navigator.of(context).push<QuestItem>(
-      MaterialPageRoute<QuestItem>(
-        builder: (context) => const AddQuestScreen(),
-      ),
+    final quest = await showDialog<QuestItem>(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.28),
+      builder: (context) => const AddQuestDialog(),
     );
 
     if (!mounted || quest == null) {
@@ -450,13 +450,13 @@ class _AutoQuestFromGalleryScreenState
 
   Future<void> _editCandidate(int index) async {
     final draft = _candidateDrafts[index];
-    final updatedQuest = await Navigator.of(context).push<QuestItem>(
-      MaterialPageRoute<QuestItem>(
-        builder: (context) => AddQuestScreen(
-          initialQuest: draft.quest,
-          title: '후보 수정',
-          submitLabel: '적용',
-        ),
+    final updatedQuest = await showDialog<QuestItem>(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.28),
+      builder: (context) => AddQuestDialog(
+        initialQuest: draft.quest,
+        title: '후보 수정',
+        submitLabel: '적용',
       ),
     );
 

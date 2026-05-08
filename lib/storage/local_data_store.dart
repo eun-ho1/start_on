@@ -8,15 +8,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 class LocalDataStore {
   const LocalDataStore();
 
-  static const _storageKey = 'ad_focus.local_data';
+  static const _storageKeyPrefix = 'ad_focus.local_data';
 
-  Future<AppLocalData> load() async {
+  Future<AppLocalData> load({String scope = 'guest'}) async {
     final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_storageKey);
+    final storageKey = _storageKey(scope);
+    final raw = prefs.getString(storageKey);
 
     if (raw == null || raw.isEmpty) {
       final initialData = normalizeLocalDataForDate(AppLocalData.initial());
-      await prefs.setString(_storageKey, jsonEncode(initialData.toJson()));
+      await prefs.setString(storageKey, jsonEncode(initialData.toJson()));
       return initialData;
     }
 
@@ -27,20 +28,22 @@ class LocalDataStore {
       );
       final normalizedRaw = jsonEncode(normalized.toJson());
       if (normalizedRaw != raw) {
-        await prefs.setString(_storageKey, normalizedRaw);
+        await prefs.setString(storageKey, normalizedRaw);
       }
       return normalized;
     } catch (_) {
       final fallback = normalizeLocalDataForDate(AppLocalData.initial());
-      await prefs.setString(_storageKey, jsonEncode(fallback.toJson()));
+      await prefs.setString(storageKey, jsonEncode(fallback.toJson()));
       return fallback;
     }
   }
 
-  Future<void> save(AppLocalData data) async {
+  Future<void> save(AppLocalData data, {String scope = 'guest'}) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_storageKey, jsonEncode(data.toJson()));
+    await prefs.setString(_storageKey(scope), jsonEncode(data.toJson()));
   }
+
+  String _storageKey(String scope) => '$_storageKeyPrefix.$scope';
 
   AppLocalData replaceNotionQuests(
     AppLocalData currentData,

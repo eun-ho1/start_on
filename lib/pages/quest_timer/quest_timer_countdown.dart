@@ -11,7 +11,6 @@ class QuestTimerCountdown extends StatelessWidget {
     required this.timerViewRevision,
     required this.running,
     required this.onComplete,
-    required this.onToggleTimer,
     required this.formatDuration,
   });
 
@@ -21,7 +20,6 @@ class QuestTimerCountdown extends StatelessWidget {
   final int timerViewRevision;
   final bool running;
   final VoidCallback onComplete;
-  final VoidCallback onToggleTimer;
   final String Function(Duration duration) formatDuration;
 
   @override
@@ -32,6 +30,7 @@ class QuestTimerCountdown extends StatelessWidget {
 
     return Column(
       children: [
+        // 패키지가 중앙 child를 직접 받지 않아서 Stack으로 링과 중앙 정보를 겹친다.
         Stack(
           alignment: Alignment.center,
           children: [
@@ -42,15 +41,15 @@ class QuestTimerCountdown extends StatelessWidget {
               duration: durationSeconds,
               initialDuration: clampedElapsedSeconds,
               controller: controller,
-              width: 190,
-              height: 190,
+              width: 264,
+              height: 264,
               autoStart: false,
               isReverse: false,
               isReverseAnimation: false,
-              strokeWidth: 19,
+              strokeWidth: 18,
               strokeCap: StrokeCap.round,
               ringColor: const Color(0xFFE8EDF6),
-              fillColor: const Color(0xFF8177FF),
+              fillColor: const Color(0xFFFFA0AB),
               backgroundColor: Colors.transparent,
               isTimerTextShown: false,
               onComplete: onComplete,
@@ -59,70 +58,120 @@ class QuestTimerCountdown extends StatelessWidget {
               },
             ),
             _QuestTimerCore(
-              elapsedSeconds: elapsedSeconds,
+              elapsed: formatDuration(Duration(seconds: elapsedSeconds)),
+              maxDurationLabel: 'MAX ${_formatMaxDuration(durationSeconds)}',
               running: running,
-              onToggleTimer: onToggleTimer,
             ),
           ],
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 18),
       ],
     );
   }
 }
 
+// 원형 타이머 중앙에 들어가는 상태/시간 표시 영역.
 class _QuestTimerCore extends StatelessWidget {
   const _QuestTimerCore({
-    required this.elapsedSeconds,
+    required this.elapsed,
+    required this.maxDurationLabel,
     required this.running,
-    required this.onToggleTimer,
   });
 
-  final int elapsedSeconds;
+  final String elapsed;
+  final String maxDurationLabel;
   final bool running;
-  final VoidCallback onToggleTimer;
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: running ? null : onToggleTimer,
-      child: neu.Neumorphic(
-        style: const neu.NeumorphicStyle(
-          depth: 5,
-          intensity: 0.88,
-          surfaceIntensity: 0.18,
-          color: Color(0xFFF1F3F8),
-          shadowLightColor: Colors.white,
-          shadowDarkColor: Color(0xFFD0D7E5),
-          boxShape: neu.NeumorphicBoxShape.circle(),
-        ),
-        child: SizedBox(
-          width: 82,
-          height: 82,
-          child: Center(
-            child: running
-                ? Text(
-                    _formatCenterDuration(elapsedSeconds),
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.black,
-                    ),
-                  )
-                : const Icon(
-                    Icons.play_arrow_rounded,
-                    color: Colors.black,
-                    size: 42,
-                  ),
+    return SizedBox(
+      width: 184,
+      height: 184,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: running
+                  ? const Color(0xFFFFEEF0)
+                  : const Color(0xFFF1F4FA),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              running ? 'RUNNING' : 'READY',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                color: running
+                    ? const Color(0xFFE76D7B)
+                    : const Color(0xFF7E899D),
+                letterSpacing: 1.1,
+              ),
+            ),
           ),
-        ),
+          const SizedBox(height: 16),
+          neu.Neumorphic(
+            style: neu.NeumorphicStyle(
+              depth: 6,
+              intensity: 0.9,
+              surfaceIntensity: 0.18,
+              color: const Color(0xFFF8FBFF),
+              shadowLightColor: Colors.white.withValues(alpha: 0.98),
+              shadowDarkColor: const Color(0xFFD5DDEA),
+              boxShape: neu.NeumorphicBoxShape.roundRect(
+                BorderRadius.circular(18),
+              ),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+            child: Text(
+              elapsed,
+              style: const TextStyle(
+                fontSize: 30,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF1C2940),
+                letterSpacing: -1.2,
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF1F4FA),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.schedule_rounded,
+                  size: 16,
+                  color: Color(0xFF667085),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  maxDurationLabel,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF667085),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-String _formatCenterDuration(int seconds) {
-  final minutes = (seconds ~/ 60).toString().padLeft(2, '0');
-  final remainingSeconds = (seconds % 60).toString().padLeft(2, '0');
-  return '$minutes:$remainingSeconds';
+String _formatMaxDuration(int seconds) {
+  final hours = seconds ~/ 3600;
+  final minutes = (seconds % 3600) ~/ 60;
+  if (hours > 0) {
+    return '$hours시간 ${minutes.toString().padLeft(2, '0')}분';
+  }
+  return '$minutes분';
 }

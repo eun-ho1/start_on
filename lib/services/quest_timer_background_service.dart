@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:ui';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -17,21 +16,6 @@ const String _prefsQuestTitleKey = 'quest_timer.quest_title';
 const String _prefsElapsedSecondsKey = 'quest_timer.elapsed_seconds';
 const String _prefsDefaultDurationKey = 'quest_timer.default_duration_seconds';
 const String _prefsIsRunningKey = 'quest_timer.is_running';
-
-bool get _supportsBackgroundService {
-  if (kIsWeb) {
-    return false;
-  }
-
-  return defaultTargetPlatform == TargetPlatform.android ||
-      defaultTargetPlatform == TargetPlatform.iOS;
-}
-
-bool _isUnsupportedBackgroundServiceError(Object error) {
-  return error.toString().contains(
-    'FlutterBackgroundService is currently supported',
-  );
-}
 
 class QuestTimerSnapshot {
   const QuestTimerSnapshot({
@@ -105,57 +89,35 @@ class QuestTimerBackgroundService {
   final FlutterBackgroundService _service = FlutterBackgroundService();
 
   Stream<QuestTimerSnapshot> get timerTicks {
-    if (!_supportsBackgroundService) {
-      return const Stream<QuestTimerSnapshot>.empty();
-    }
-
-    try {
-      return _service
-          .on(_questTimerTickEvent)
-          .map((data) {
-            final normalized = data == null
-                ? null
-                : Map<String, dynamic>.from(data);
-            return QuestTimerSnapshot.fromMap(normalized);
-          })
-          .where((snapshot) => snapshot != null)
-          .cast<QuestTimerSnapshot>();
-    } catch (error) {
-      if (_isUnsupportedBackgroundServiceError(error)) {
-        return const Stream<QuestTimerSnapshot>.empty();
-      }
-      rethrow;
-    }
+    return _service
+        .on(_questTimerTickEvent)
+        .map((data) {
+          final normalized = data == null
+              ? null
+              : Map<String, dynamic>.from(data);
+          return QuestTimerSnapshot.fromMap(normalized);
+        })
+        .where((snapshot) => snapshot != null)
+        .cast<QuestTimerSnapshot>();
   }
 
   Future<void> initialize() async {
-    if (!_supportsBackgroundService) {
-      return;
-    }
-
-    try {
-      await _service.configure(
-        androidConfiguration: AndroidConfiguration(
-          onStart: questTimerBackgroundOnStart,
-          autoStart: false,
-          autoStartOnBoot: false,
-          isForegroundMode: true,
-          initialNotificationTitle: '퀘스트 진행 중',
-          initialNotificationContent: '백그라운드 타이머 준비 중',
-          foregroundServiceNotificationId: 9042,
-        ),
-        iosConfiguration: IosConfiguration(
-          autoStart: false,
-          onForeground: questTimerBackgroundOnStart,
-          onBackground: questTimerBackgroundOnIosBackground,
-        ),
-      );
-    } catch (error) {
-      if (_isUnsupportedBackgroundServiceError(error)) {
-        return;
-      }
-      rethrow;
-    }
+    await _service.configure(
+      androidConfiguration: AndroidConfiguration(
+        onStart: questTimerBackgroundOnStart,
+        autoStart: false,
+        autoStartOnBoot: false,
+        isForegroundMode: true,
+        initialNotificationTitle: '퀘스트 진행 중',
+        initialNotificationContent: '백그라운드 타이머 준비 중',
+        foregroundServiceNotificationId: 9042,
+      ),
+      iosConfiguration: IosConfiguration(
+        autoStart: false,
+        onForeground: questTimerBackgroundOnStart,
+        onBackground: questTimerBackgroundOnIosBackground,
+      ),
+    );
 
     final settings = await const AppSettingsStore().load();
     final snapshot = await currentState();
@@ -175,8 +137,8 @@ class QuestTimerBackgroundService {
       return;
     }
 
-    if (!await _isServiceRunning()) {
-      await _startServiceIfSupported();
+    if (!await _service.isRunning()) {
+      await _service.startService();
     }
   }
 
@@ -196,16 +158,12 @@ class QuestTimerBackgroundService {
 
     await _persistSnapshot(snapshot);
 
-    if (!_supportsBackgroundService) {
-      return;
-    }
-
-    if (await _isServiceRunning()) {
+    if (await _service.isRunning()) {
       _service.invoke(_questTimerResumeAction, snapshot.toMap());
       return;
     }
 
-    await _startServiceIfSupported();
+    await _service.startService();
   }
 
   Future<void> pauseTimer({
@@ -224,11 +182,7 @@ class QuestTimerBackgroundService {
 
     await _persistSnapshot(snapshot);
 
-    if (!_supportsBackgroundService) {
-      return;
-    }
-
-    if (await _isServiceRunning()) {
+    if (await _service.isRunning()) {
       _service.invoke(_questTimerPauseAction, snapshot.toMap());
     }
   }
@@ -236,11 +190,7 @@ class QuestTimerBackgroundService {
   Future<void> stopTimer() async {
     await _clearSnapshot();
 
-    if (!_supportsBackgroundService) {
-      return;
-    }
-
-    if (await _isServiceRunning()) {
+    if (await _service.isRunning()) {
       _service.invoke(_questTimerStopAction);
     }
   }
@@ -280,28 +230,6 @@ class QuestTimerBackgroundService {
     await prefs.remove(_prefsElapsedSecondsKey);
     await prefs.remove(_prefsDefaultDurationKey);
     await prefs.remove(_prefsIsRunningKey);
-  }
-
-  Future<bool> _isServiceRunning() async {
-    try {
-      return await _service.isRunning();
-    } catch (error) {
-      if (_isUnsupportedBackgroundServiceError(error)) {
-        return false;
-      }
-      rethrow;
-    }
-  }
-
-  Future<void> _startServiceIfSupported() async {
-    try {
-      await _service.startService();
-    } catch (error) {
-      if (_isUnsupportedBackgroundServiceError(error)) {
-        return;
-      }
-      rethrow;
-    }
   }
 }
 

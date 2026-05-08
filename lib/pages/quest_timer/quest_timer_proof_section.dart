@@ -8,93 +8,121 @@ class QuestTimerProofSection extends StatelessWidget {
     super.key,
     required this.proofImagePath,
     required this.isCompleting,
+    required this.onPickCamera,
     required this.onPickGallery,
     required this.onClearImage,
   });
 
   final String? proofImagePath;
   final bool isCompleting;
+  final VoidCallback onPickCamera;
   final VoidCallback onPickGallery;
   final VoidCallback onClearImage;
 
   @override
   Widget build(BuildContext context) {
-    if (proofImagePath == null) {
-      return GestureDetector(
-        onTap: isCompleting ? null : onPickGallery,
-        child: Opacity(
-          opacity: isCompleting ? 0.48 : 1,
-          child: neu.Neumorphic(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Expanded(
+              child: Text(
+                '인증 사진',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF1C2940),
+                ),
+              ),
+            ),
+            _QuestTimerProofIconButton(
+              icon: Icons.photo_camera_outlined,
+              onTap: isCompleting ? null : onPickCamera,
+            ),
+            const SizedBox(width: 10),
+            _QuestTimerProofIconButton(
+              icon: Icons.photo_library_outlined,
+              onTap: isCompleting ? null : onPickGallery,
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        if (proofImagePath == null)
+          neu.Neumorphic(
             style: neu.NeumorphicStyle(
               depth: -5,
               intensity: 0.92,
-              surfaceIntensity: 0.22,
-              color: const Color(0xFFF1F3F8),
-              shadowLightColor: Colors.white,
-              shadowDarkColor: const Color(0xFFD0D7E5),
+              surfaceIntensity: 0.16,
+              color: const Color(0xFFF8FBFF),
+              shadowLightColor: Colors.white.withValues(alpha: 0.98),
+              shadowDarkColor: const Color(0xFFD5DDEA),
               boxShape: neu.NeumorphicBoxShape.roundRect(
-                BorderRadius.circular(12),
+                BorderRadius.circular(18),
               ),
             ),
             child: SizedBox(
               width: double.infinity,
               child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 12),
+                padding: const EdgeInsets.symmetric(vertical: 34),
                 child: const Column(
                   children: [
-                    Icon(Icons.upload_outlined, size: 20, color: Colors.black),
-                    SizedBox(height: 3),
+                    Icon(
+                      Icons.upload_outlined,
+                      size: 34,
+                      color: Color(0xFF8E9AAE),
+                    ),
+                    SizedBox(height: 8),
                     Text(
-                      '사진 업로드',
+                      '카메라 촬영 또는 갤러리에서 선택',
                       style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.black,
-                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
+                        color: Color(0xFF7E899D),
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ],
                 ),
               ),
             ),
+          )
+        else
+          Stack(
+            children: [
+              neu.Neumorphic(
+                style: neu.NeumorphicStyle(
+                  depth: 7,
+                  intensity: 0.9,
+                  surfaceIntensity: 0.16,
+                  color: const Color(0xFFF8FBFF),
+                  shadowLightColor: Colors.white.withValues(alpha: 0.98),
+                  shadowDarkColor: const Color(0xFFD5DDEA),
+                  boxShape: neu.NeumorphicBoxShape.roundRect(
+                    BorderRadius.circular(18),
+                  ),
+                ),
+                padding: const EdgeInsets.all(8),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(14),
+                  child: Image.file(
+                    File(proofImagePath!),
+                    width: double.infinity,
+                    height: 220,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              ),
+              Positioned(
+                top: 14,
+                right: 14,
+                child: _QuestTimerProofIconButton(
+                  icon: Icons.close_rounded,
+                  onTap: isCompleting ? null : onClearImage,
+                  size: 38,
+                ),
+              ),
+            ],
           ),
-        ),
-      );
-    }
-
-    return Stack(
-      children: [
-        neu.Neumorphic(
-          style: neu.NeumorphicStyle(
-            depth: 7,
-            intensity: 0.9,
-            surfaceIntensity: 0.18,
-            color: const Color(0xFFF1F3F8),
-            shadowLightColor: Colors.white,
-            shadowDarkColor: const Color(0xFFD0D7E5),
-            boxShape: neu.NeumorphicBoxShape.roundRect(
-              BorderRadius.circular(12),
-            ),
-          ),
-          padding: const EdgeInsets.all(8),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: Image.file(
-              File(proofImagePath!),
-              width: double.infinity,
-              height: 180,
-              fit: BoxFit.cover,
-            ),
-          ),
-        ),
-        Positioned(
-          top: 14,
-          right: 14,
-          child: _QuestTimerProofIconButton(
-            icon: Icons.close_rounded,
-            onTap: isCompleting ? null : onClearImage,
-            size: 38,
-          ),
-        ),
       ],
     );
   }
@@ -118,14 +146,14 @@ class _QuestTimerProofIconButton extends StatelessWidget {
       child: Opacity(
         opacity: onTap == null ? 0.4 : 1,
         child: neu.Neumorphic(
-          style: const neu.NeumorphicStyle(
+          style: neu.NeumorphicStyle(
             depth: 6,
             intensity: 0.9,
             surfaceIntensity: 0.18,
-            color: Color(0xFFF1F3F8),
-            shadowLightColor: Colors.white,
-            shadowDarkColor: Color(0xFFD0D7E5),
-            boxShape: neu.NeumorphicBoxShape.circle(),
+            color: const Color(0xFFF8FBFF),
+            shadowLightColor: Colors.white.withValues(alpha: 0.98),
+            shadowDarkColor: const Color(0xFFD5DDEA),
+            boxShape: const neu.NeumorphicBoxShape.circle(),
           ),
           child: SizedBox(
             width: size,

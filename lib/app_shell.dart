@@ -2,157 +2,118 @@ import 'dart:async';
 
 import 'package:start_on/models/app_local_data.dart';
 import 'package:start_on/pages/add_quest_screen.dart';
+import 'package:start_on/pages/auth_screen.dart';
 import 'package:start_on/pages/auto_quest_from_gallery_screen.dart';
 import 'package:start_on/pages/dungeon_screen.dart';
 import 'package:start_on/pages/home_screen.dart';
-import 'package:start_on/pages/login_screen.dart';
-import 'package:start_on/pages/quest_timer/quest_timer_bottom_sheet.dart';
 import 'package:start_on/pages/quest_timer_screen.dart';
-import 'package:start_on/pages/ranking_screen.dart';
 import 'package:start_on/pages/record_screen.dart';
 import 'package:start_on/pages/settings_screen.dart';
+import 'package:start_on/pages/shop_screen.dart';
+import 'package:start_on/services/auth_service.dart';
 import 'package:start_on/services/quest_timer_background_service.dart';
+import 'package:start_on/services/remote_quest_api.dart';
 import 'package:start_on/storage/app_settings_store.dart';
-import 'package:start_on/storage/auth_session_store.dart';
 import 'package:start_on/storage/local_data_store.dart';
 import 'package:start_on/widgets/common.dart';
 import 'package:start_on/widgets/quest_completion_celebration.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
 
-const _systemUiOverlayStyle = SystemUiOverlayStyle(
-  systemNavigationBarColor: Color(0xFFF1F3F8),
-  systemNavigationBarIconBrightness: Brightness.dark,
-  statusBarColor: Colors.transparent,
-  statusBarIconBrightness: Brightness.dark,
-);
-
 class AdFocusApp extends StatelessWidget {
-  const AdFocusApp({super.key});
+  const AdFocusApp({
+    super.key,
+    this.useRemoteBackend = false,
+    this.remoteBaseUrl = 'http://10.0.2.2:8000',
+  });
+
+  final bool useRemoteBackend;
+  final String remoteBaseUrl;
 
   @override
   Widget build(BuildContext context) {
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: _systemUiOverlayStyle,
-      child: MaterialApp(
-        debugShowCheckedModeBanner: false,
-        title: 'Start On',
-        theme: ThemeData(
-          useMaterial3: true,
-          scaffoldBackgroundColor: const Color(0xFFF1F3F8),
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: const Color(0xFF6F63FF),
-            brightness: Brightness.light,
-          ),
-          fontFamily: 'Pretendard',
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: 'Start On',
+      theme: ThemeData(
+        useMaterial3: true,
+        scaffoldBackgroundColor: const Color(0xFFF1F3F8),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF6F63FF),
+          brightness: Brightness.light,
         ),
-        home: const _AuthGate(),
+        fontFamily: 'Pretendard',
       ),
+      home: useRemoteBackend
+          ? _RemoteAuthGate(remoteBaseUrl: remoteBaseUrl)
+          : AdFocusShell(
+              useRemoteBackend: useRemoteBackend,
+              remoteBaseUrl: remoteBaseUrl,
+            ),
     );
   }
 }
 
-class _AuthGate extends StatefulWidget {
-  const _AuthGate();
+class _RemoteAuthGate extends StatefulWidget {
+  const _RemoteAuthGate({required this.remoteBaseUrl});
+
+  final String remoteBaseUrl;
 
   @override
-  State<_AuthGate> createState() => _AuthGateState();
+  State<_RemoteAuthGate> createState() => _RemoteAuthGateState();
 }
 
-class _AuthGateState extends State<_AuthGate> {
-  final AuthSessionStore _authStore = const AuthSessionStore();
-
-  AuthSession? _session;
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    unawaited(_loadSession());
-  }
+class _RemoteAuthGateState extends State<_RemoteAuthGate> {
+  final AuthService _authService = AuthService.instance;
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return Scaffold(
-        body: Container(
-          decoration: const BoxDecoration(color: Color(0xFFF1F3F8)),
-          child: const Center(
-            child: CircularProgressIndicator(color: Color(0xFF6F63FF)),
-          ),
-        ),
-      );
-    }
+    return StreamBuilder<AppAuthSession?>(
+      stream: _authService.authStateChanges,
+      initialData: _authService.currentSession,
+      builder: (context, snapshot) {
+        final session = snapshot.data ?? _authService.currentSession;
+        if (session == null) {
+          return AuthScreen(
+            onSignIn: _signIn,
+            onSignUp: _signUp,
+          );
+        }
 
-    final session = _session;
-    if (session == null) {
-      return LoginScreen(onSignIn: _handleSignIn);
-    }
-
-    return AdFocusShell(
-      session: session,
-      onChangeAccount: _handleAccountChange,
+        return AdFocusShell(
+          useRemoteBackend: true,
+          remoteBaseUrl: widget.remoteBaseUrl,
+        );
+      },
     );
   }
 
-  Future<void> _loadSession() async {
-    final session = await _authStore.load();
-    if (!mounted) {
-      return;
+  Future<void> _signIn(String email, String password) async {
+    try {
+      await _authService.signIn(email: email, password: password);
+    } catch (error) {
+      throw Exception(error.toString().replaceFirst('Exception: ', ''));
     }
-
-    setState(() {
-      _session = session;
-      _isLoading = false;
-    });
   }
 
-  Future<void> _handleSignIn(AuthSession session) async {
-    await _authStore.save(session);
-
-    if (!mounted) {
-      return;
+  Future<void> _signUp(String email, String password) async {
+    try {
+      await _authService.signUp(email: email, password: password);
+    } catch (error) {
+      throw Exception(error.toString().replaceFirst('Exception: ', ''));
     }
-    setState(() => _session = session);
-  }
-
-  Future<void> _handleAccountChange() async {
-    await _authStore.clear();
-    if (!mounted) {
-      return;
-    }
-    setState(() => _session = null);
-  }
-}
-
-class _BottomNavCenterFabLocation extends FloatingActionButtonLocation {
-  const _BottomNavCenterFabLocation();
-
-  @override
-  Offset getOffset(ScaffoldPrelayoutGeometry scaffoldGeometry) {
-    final fabSize = scaffoldGeometry.floatingActionButtonSize;
-    final bottomBarHeight =
-        scaffoldGeometry.scaffoldSize.height - scaffoldGeometry.contentBottom;
-
-    return Offset(
-      (scaffoldGeometry.scaffoldSize.width - fabSize.width) / 2,
-      scaffoldGeometry.contentBottom +
-          (bottomBarHeight - fabSize.height) / 2 -
-          18,
-    );
   }
 }
 
 class AdFocusShell extends StatefulWidget {
   const AdFocusShell({
-    required this.session,
-    required this.onChangeAccount,
     super.key,
+    this.useRemoteBackend = false,
+    this.remoteBaseUrl = 'http://10.0.2.2:8000',
   });
 
-  final AuthSession session;
-  final Future<void> Function() onChangeAccount;
+  final bool useRemoteBackend;
+  final String remoteBaseUrl;
 
   @override
   State<AdFocusShell> createState() => _AdFocusShellState();
@@ -160,23 +121,23 @@ class AdFocusShell extends StatefulWidget {
 
 class _AdFocusShellState extends State<AdFocusShell>
     with SingleTickerProviderStateMixin {
-  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  final AuthService _authService = AuthService.instance;
   final AppSettingsStore _settingsStore = const AppSettingsStore();
   final LocalDataStore _store = const LocalDataStore();
   final QuestTimerBackgroundService _questTimerService =
       QuestTimerBackgroundService.instance;
+  late final RemoteQuestApi _remoteQuestApi = RemoteQuestApi(
+    baseUrl: widget.remoteBaseUrl,
+  );
 
   int _currentIndex = 0;
   int _celebrationSeed = 0;
   bool _isLoading = true;
   bool _isOpeningQuestTimer = false;
   bool _isQuestTimerRouteOpen = false;
-  bool _isQuestTimerBottomSheetOpen = false;
-  bool _didShowLaunchQuestTimerSheet = false;
   bool _notificationsEnabled = true;
   bool _showQuestCelebration = false;
   AppLocalData _localData = AppLocalData.initial();
-  PersistentBottomSheetController? _questTimerBottomSheetController;
   StreamSubscription<QuestTimerSnapshot>? _questTimerTickSubscription;
   late final AnimationController _fabPopController = AnimationController(
     vsync: this,
@@ -241,7 +202,7 @@ class _AdFocusShellState extends State<AdFocusShell>
     final screens = [
       HomeScreen(
         data: _localData,
-        userName: widget.session.displayName,
+        userName: _currentUserName,
         onAddQuest: _openAddQuest,
         onAddQuestForCategory: _openAddQuestForCategory,
         onQuestTap: _openQuestTimer,
@@ -251,12 +212,11 @@ class _AdFocusShellState extends State<AdFocusShell>
         onTabChange: _changeTab,
       ),
       DungeonScreen(data: _localData, onClearDungeon: _completeDungeon),
-      RankingScreen(data: _localData),
+      ShopScreen(data: _localData),
       RecordScreen(data: _localData),
     ];
 
     return Scaffold(
-      key: _scaffoldKey,
       extendBody: true,
       body: Stack(
         children: [
@@ -278,7 +238,7 @@ class _AdFocusShellState extends State<AdFocusShell>
             ),
         ],
       ),
-      floatingActionButtonLocation: const _BottomNavCenterFabLocation(),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       floatingActionButton: ScaleTransition(
         scale: _fabPopScale,
         child: NeumorphicRoundedCard(
@@ -323,12 +283,31 @@ class _AdFocusShellState extends State<AdFocusShell>
   Future<void> _openAddQuestScreen({String? initialCategory}) async {
     final quest = await Navigator.of(context).push<QuestItem>(
       MaterialPageRoute<QuestItem>(
-        builder: (context) => AddQuestScreen(initialCategory: initialCategory),
+        builder: (_) => AddQuestScreen(initialCategory: initialCategory),
       ),
     );
 
     if (quest == null) {
       return;
+    }
+
+    if (widget.useRemoteBackend) {
+      try {
+        final createdQuest = await _remoteQuestApi.createQuest(
+          _requireAccessToken(),
+          quest,
+        );
+        _setLocalData(
+          _localData.copyWith(quests: [createdQuest, ..._localData.quests]),
+        );
+        return;
+      } on RemoteQuestApiException catch (error) {
+        _showStyledSnackBar(error.message);
+        return;
+      } catch (_) {
+        _showStyledSnackBar('Failed to create quest on the server.');
+        return;
+      }
     }
 
     _setLocalData(_localData.copyWith(quests: [quest, ..._localData.quests]));
@@ -341,8 +320,8 @@ class _AdFocusShellState extends State<AdFocusShell>
       MaterialPageRoute<Object?>(
         builder: (_) => QuestTimerScreen(
           quest: quest,
-          userLevel: _localData.level,
           notificationsEnabled: _notificationsEnabled,
+          onDelete: () => _deleteQuest(quest),
         ),
       ),
     );
@@ -353,15 +332,27 @@ class _AdFocusShellState extends State<AdFocusShell>
       return;
     }
 
-    _handleQuestTimerResult(result);
-  }
-
-  void _handleQuestTimerResult(Object? result) {
-    if (result == null) {
-      return;
-    }
-
     if (result case CompletedQuestRecord completedRecord) {
+      if (widget.useRemoteBackend) {
+        try {
+          final remoteCompleted = await _remoteQuestApi.completeQuest(
+            _requireAccessToken(),
+            completedRecord.questId,
+            completedRecord.elapsedSeconds,
+            completedRecord.proofImagePath,
+          );
+          _setLocalData(_store.completeQuest(_localData, remoteCompleted));
+          _triggerQuestCelebration();
+          return;
+        } on RemoteQuestApiException catch (error) {
+          _showStyledSnackBar(error.message);
+          return;
+        } catch (_) {
+          _showStyledSnackBar('Failed to complete quest on the server.');
+          return;
+        }
+      }
+
       _setLocalData(_store.completeQuest(_localData, completedRecord));
       _triggerQuestCelebration();
       return;
@@ -381,17 +372,19 @@ class _AdFocusShellState extends State<AdFocusShell>
   }
 
   Future<void> _openSettings() async {
-    final result = await Navigator.of(context).push<SettingsScreenResult>(
+    final result = await Navigator.of(
+      context,
+    ).push<SettingsScreenResult>(
       MaterialPageRoute<SettingsScreenResult>(
         builder: (_) => SettingsScreen(
-          userName: widget.session.displayName,
-          userEmail: widget.session.email,
+          userName: _currentUserName,
+          userEmail: _authService.currentUser?.email,
         ),
       ),
     );
 
-    if (result == SettingsScreenResult.changeAccount) {
-      await widget.onChangeAccount();
+    if (result == SettingsScreenResult.changeAccount && widget.useRemoteBackend) {
+      await _authService.signOut();
       return;
     }
 
@@ -417,22 +410,11 @@ class _AdFocusShellState extends State<AdFocusShell>
   }
 
   void _deleteQuest(QuestItem quest) {
-    unawaited(_stopQuestTimerIfActive(quest.id));
-    _setLocalData(
-      _localData.copyWith(
-        quests: _localData.quests.where((item) => item.id != quest.id).toList(),
-      ),
-    );
+    unawaited(_deleteQuestAsync(quest));
   }
 
   void _updateQuest(QuestItem updatedQuest) {
-    _setLocalData(
-      _localData.copyWith(
-        quests: _localData.quests
-            .map((item) => item.id == updatedQuest.id ? updatedQuest : item)
-            .toList(),
-      ),
-    );
+    unawaited(_updateQuestAsync(updatedQuest));
   }
 
   void _completeDungeon(String dungeonId) {
@@ -457,7 +439,7 @@ class _AdFocusShellState extends State<AdFocusShell>
 
   Future<void> _loadLocalData() async {
     final data = await _buildLoadedLocalData();
-    final activeSnapshot = await _questTimerService.currentState();
+    final activeSnapshot = await _safeCurrentQuestTimerState();
 
     if (!mounted) {
       return;
@@ -472,104 +454,12 @@ class _AdFocusShellState extends State<AdFocusShell>
       unawaited(
         _openActiveQuestTimerIfNeeded(questId: activeSnapshot!.questId),
       );
-      return;
     }
-
-    _scheduleLaunchQuestTimerBottomSheet();
   }
 
   void _setLocalData(AppLocalData data) {
     setState(() => _localData = data);
-    unawaited(_store.save(data));
-  }
-
-  void _scheduleLaunchQuestTimerBottomSheet() {
-    if (_didShowLaunchQuestTimerSheet || _localData.quests.isEmpty) {
-      return;
-    }
-
-    _didShowLaunchQuestTimerSheet = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || _currentIndex != 0 || _localData.quests.isEmpty) {
-        return;
-      }
-
-      unawaited(_openQuestTimerBottomSheet(_localData.quests.first));
-    });
-  }
-
-  Future<void> _openQuestTimerBottomSheet(QuestItem quest) async {
-    if (!mounted ||
-        _isOpeningQuestTimer ||
-        _isQuestTimerRouteOpen ||
-        _isQuestTimerBottomSheetOpen) {
-      return;
-    }
-
-    final scaffoldState = _scaffoldKey.currentState;
-    if (scaffoldState == null) {
-      return;
-    }
-
-    _isQuestTimerBottomSheetOpen = true;
-    QuestItem? fullTimerQuest;
-
-    late final PersistentBottomSheetController controller;
-    controller = scaffoldState.showBottomSheet(
-      (context) => SizedBox(
-        width: double.infinity,
-        height: MediaQuery.sizeOf(context).height * 0.34,
-        child: QuestTimerBottomSheet(
-          quest: quest,
-          notificationsEnabled: _notificationsEnabled,
-          onQuestChanged: _updateQuest,
-          onOpenFullTimer: (updatedQuest) {
-            fullTimerQuest = updatedQuest;
-            controller.close();
-          },
-          onClose: () => controller.close(),
-        ),
-      ),
-      backgroundColor: Colors.transparent,
-      elevation: 0,
-      enableDrag: false,
-      sheetAnimationStyle: const AnimationStyle(
-        curve: Curves.easeOutCubic,
-        duration: Duration(milliseconds: 360),
-        reverseCurve: Curves.easeInCubic,
-        reverseDuration: Duration(milliseconds: 260),
-      ),
-    );
-    _questTimerBottomSheetController = controller;
-
-    await controller.closed;
-
-    if (!mounted) {
-      return;
-    }
-
-    _isQuestTimerBottomSheetOpen = false;
-    if (identical(_questTimerBottomSheetController, controller)) {
-      _questTimerBottomSheetController = null;
-    }
-
-    final questForFullTimer = fullTimerQuest;
-    if (questForFullTimer != null) {
-      await _openQuestTimer(questForFullTimer);
-      return;
-    }
-
-    if (_notificationsEnabled) {
-      final snapshot = await _questTimerService.currentState();
-      if (snapshot?.questId == quest.id && snapshot?.isRunning == true) {
-        await _questTimerService.pauseTimer(
-          questId: snapshot!.questId,
-          questTitle: snapshot.questTitle,
-          elapsedSeconds: snapshot.elapsedSeconds,
-          defaultDurationSeconds: snapshot.defaultDurationSeconds,
-        );
-      }
-    }
+    unawaited(_store.save(data, scope: _localDataScope));
   }
 
   void _showStyledSnackBar(
@@ -722,9 +612,39 @@ class _AdFocusShellState extends State<AdFocusShell>
   }
 
   Future<void> _initializeAppState() async {
-    await _loadNotificationSetting();
-    await _requestNotificationPermissionOnLaunch();
-    await _loadLocalData();
+    try {
+      await _loadNotificationSetting().timeout(const Duration(seconds: 3));
+      await _requestNotificationPermissionOnLaunch().timeout(
+        const Duration(seconds: 3),
+      );
+      await _loadLocalData().timeout(const Duration(seconds: 8));
+    } catch (error) {
+      final fallbackData = await _store.load(scope: _safeLocalDataScope);
+      final activeSnapshot = await _safeCurrentQuestTimerState();
+      final nextData = activeSnapshot == null
+          ? fallbackData
+          : _copyWithQuestElapsed(
+              fallbackData,
+              questId: activeSnapshot.questId,
+              elapsedSeconds: activeSnapshot.elapsedSeconds,
+            );
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _localData = nextData;
+        _isLoading = false;
+      });
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) {
+          return;
+        }
+        _showStyledSnackBar('Failed to finish startup cleanly. Loaded local data instead.');
+      });
+    }
   }
 
   Future<void> _loadNotificationSetting() async {
@@ -767,8 +687,98 @@ class _AdFocusShellState extends State<AdFocusShell>
   }
 
   Future<AppLocalData> _buildLoadedLocalData() async {
-    var data = await _store.load();
-    final activeSnapshot = await _questTimerService.currentState();
+    var data = await _store.load(scope: _safeLocalDataScope);
+    if (widget.useRemoteBackend &&
+        _authService.isConfigured &&
+        _authService.currentSession != null) {
+      try {
+        final accessToken = _requireAccessToken();
+        final remoteProfile = await _remoteQuestApi.fetchProfile(accessToken);
+        final remoteStats = await _remoteQuestApi.fetchStats(accessToken);
+        final remoteQuests = await _remoteQuestApi.fetchQuests(accessToken);
+        data = data.copyWith(
+          userName: remoteProfile['userName']?.toString() ?? data.userName,
+          userRole: remoteProfile['userRole']?.toString() ?? data.userRole,
+          level: _readInt(remoteProfile['level'], fallback: data.level),
+          currentExp: _readInt(
+            remoteProfile['currentExp'],
+            fallback: data.currentExp,
+          ),
+          maxExp: _readInt(remoteProfile['maxExp'], fallback: data.maxExp),
+          credits: _readInt(remoteProfile['credits'], fallback: data.credits),
+          completedQuestCount: _readInt(
+            remoteProfile['completedQuestCount'],
+            fallback: data.completedQuestCount,
+          ),
+          earnedExp: _readInt(
+            remoteProfile['earnedExp'],
+            fallback: data.earnedExp,
+          ),
+          dailyRewardCount: _readInt(
+            remoteStats['dailyRewardCount'],
+            fallback: data.dailyRewardCount,
+          ),
+          dailyRewardTarget: _readInt(
+            remoteStats['dailyRewardTarget'],
+            fallback: data.dailyRewardTarget,
+          ),
+          weeklyRewardCount: _readInt(
+            remoteStats['weeklyRewardCount'],
+            fallback: data.weeklyRewardCount,
+          ),
+          weeklyRewardTarget: _readInt(
+            remoteStats['weeklyRewardTarget'],
+            fallback: data.weeklyRewardTarget,
+          ),
+          monthlyRewardCount: _readInt(
+            remoteStats['monthlyRewardCount'],
+            fallback: data.monthlyRewardCount,
+          ),
+          monthlyRewardTarget: _readInt(
+            remoteStats['monthlyRewardTarget'],
+            fallback: data.monthlyRewardTarget,
+          ),
+          weeklyCompletedCount: _readInt(
+            remoteStats['weeklyCompletedCount'],
+            fallback: data.weeklyCompletedCount,
+          ),
+          weeklyCompletionRate: _readInt(
+            remoteStats['weeklyCompletionRate'],
+            fallback: data.weeklyCompletionRate,
+          ),
+          weeklyRateDelta: _readInt(
+            remoteStats['weeklyRateDelta'],
+            fallback: data.weeklyRateDelta,
+          ),
+          diligenceStat: _readInt(
+            remoteStats['diligenceStat'],
+            fallback: data.diligenceStat,
+          ),
+          orderStat: _readInt(
+            remoteStats['orderStat'],
+            fallback: data.orderStat,
+          ),
+          intelligenceStat: _readInt(
+            remoteStats['intelligenceStat'],
+            fallback: data.intelligenceStat,
+          ),
+          healthStat: _readInt(
+            remoteStats['healthStat'],
+            fallback: data.healthStat,
+          ),
+          quests: remoteQuests,
+        );
+      } on RemoteQuestApiException catch (error) {
+        if (mounted) {
+          _showStyledSnackBar(error.message);
+        }
+      } catch (_) {
+        if (mounted) {
+          _showStyledSnackBar('Failed to load remote quests. Showing local data.');
+        }
+      }
+    }
+    final activeSnapshot = await _safeCurrentQuestTimerState();
     if (activeSnapshot != null) {
       data = _copyWithQuestElapsed(
         data,
@@ -777,6 +787,14 @@ class _AdFocusShellState extends State<AdFocusShell>
       );
     }
     return data;
+  }
+
+  Future<QuestTimerSnapshot?> _safeCurrentQuestTimerState() async {
+    try {
+      return await _questTimerService.currentState();
+    } catch (_) {
+      return null;
+    }
   }
 
   void _triggerQuestCelebration() {
@@ -792,5 +810,99 @@ class _AdFocusShellState extends State<AdFocusShell>
       return;
     }
     setState(() => _showQuestCelebration = false);
+  }
+
+  Future<void> _deleteQuestAsync(QuestItem quest) async {
+    await _stopQuestTimerIfActive(quest.id);
+
+    if (widget.useRemoteBackend) {
+      try {
+        await _remoteQuestApi.deleteQuest(_requireAccessToken(), quest.id);
+      } on RemoteQuestApiException catch (error) {
+        _showStyledSnackBar(error.message);
+        return;
+      } catch (_) {
+        _showStyledSnackBar('Failed to delete quest on the server.');
+        return;
+      }
+    }
+
+    _setLocalData(
+      _localData.copyWith(
+        quests: _localData.quests.where((item) => item.id != quest.id).toList(),
+      ),
+    );
+  }
+
+  Future<void> _updateQuestAsync(QuestItem updatedQuest) async {
+    QuestItem nextQuest = updatedQuest;
+    if (widget.useRemoteBackend) {
+      try {
+        nextQuest = await _remoteQuestApi.updateQuest(
+          _requireAccessToken(),
+          updatedQuest.id,
+          updatedQuest.toJson(),
+        );
+      } on RemoteQuestApiException catch (error) {
+        _showStyledSnackBar(error.message);
+        return;
+      } catch (_) {
+        _showStyledSnackBar('Failed to update quest on the server.');
+        return;
+      }
+    }
+
+    _setLocalData(
+      _localData.copyWith(
+        quests: _localData.quests
+            .map((item) => item.id == updatedQuest.id ? nextQuest : item)
+            .toList(),
+      ),
+    );
+  }
+
+  String get _localDataScope {
+    final userId = _authService.currentUser?.id;
+    if (widget.useRemoteBackend && userId != null && userId.isNotEmpty) {
+      return userId;
+    }
+    return 'guest';
+  }
+
+  String get _safeLocalDataScope {
+    try {
+      return _localDataScope;
+    } catch (_) {
+      return 'guest';
+    }
+  }
+
+  String _requireAccessToken() {
+    final token = _authService.currentSession?.accessToken;
+    if (token == null || token.isEmpty) {
+      throw const RemoteQuestApiException('로그인 세션이 만료되었습니다. 다시 로그인해주세요.');
+    }
+    return token;
+  }
+
+  int _readInt(Object? value, {required int fallback}) {
+    if (value is int) {
+      return value;
+    }
+    if (value is num) {
+      return value.toInt();
+    }
+    if (value is String) {
+      return int.tryParse(value) ?? fallback;
+    }
+    return fallback;
+  }
+
+  String get _currentUserName {
+    final email = _authService.currentUser?.email?.trim();
+    if (email != null && email.isNotEmpty) {
+      return email.split('@').first;
+    }
+    return 'Guest';
   }
 }

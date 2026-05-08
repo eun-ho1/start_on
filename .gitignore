@@ -33,6 +33,32 @@ migrate_working_dir/
 /build/
 /coverage/
 
+# Local environments and secrets
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+.venv/
+.venv-win/
+.venv311/
+__pycache__/
+
+# Local tooling state
+.vscode/
+.remote_sync/
+
+# Runtime output
+*.out.log
+*.err.log
+server.log
+server.err.log
+server.run.out.log
+server.run.err.log
+server.test.out.log
+server.test.err.log
+
 # Symbolication related
 app.*.symbols
 

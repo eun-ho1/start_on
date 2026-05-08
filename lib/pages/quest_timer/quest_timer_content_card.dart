@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:start_on/widgets/common.dart';
 
 class QuestTimerContentCard extends StatelessWidget {
   const QuestTimerContentCard({
@@ -7,14 +8,12 @@ class QuestTimerContentCard extends StatelessWidget {
     required this.countdown,
     required this.actionButtons,
     required this.proofSection,
-    required this.categoryTimes,
   });
 
   final Widget questSummary;
   final Widget countdown;
   final Widget actionButtons;
   final Widget proofSection;
-  final Widget categoryTimes;
 
   @override
   Widget build(BuildContext context) {
@@ -25,10 +24,8 @@ class QuestTimerContentCard extends StatelessWidget {
         countdown,
         const SizedBox(height: 20),
         actionButtons,
-        const SizedBox(height: 26),
+        const SizedBox(height: 28),
         proofSection,
-        const SizedBox(height: 24),
-        categoryTimes,
       ],
     );
   }

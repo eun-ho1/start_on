@@ -4,60 +4,35 @@ class QuestTimerHeader extends StatelessWidget {
   const QuestTimerHeader({
     super.key,
     required this.onBack,
-    required this.onEdit,
+    required this.onDelete,
   });
 
   final VoidCallback onBack;
-  final VoidCallback onEdit;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        SizedBox(
-          width: 70,
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: SizedBox(
-              width: 40,
-              height: 40,
-              child: IconButton(
-                onPressed: onBack,
-                icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-              ),
-            ),
+        IconButton(
+          onPressed: onBack,
+          icon: const Icon(Icons.arrow_back_ios_new_rounded),
+        ),
+        const SizedBox(width: 4),
+        const Text(
+          '퀘스트 진행',
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.w800,
+            color: Color(0xFF1C2940),
           ),
         ),
-        const Expanded(
-          child: Center(
-            child: Text(
-              'Timer',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF1C2940),
-              ),
-            ),
-          ),
-        ),
-        SizedBox(
-          width: 70,
-          child: Align(
-            alignment: Alignment.centerRight,
-            child: SizedBox(
-              width: 40,
-              height: 40,
-              child: IconButton(
-                onPressed: onEdit,
-                icon: const Icon(Icons.edit_rounded, size: 21),
-                color: const Color(0xFF1C2940),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-              ),
-            ),
-          ),
+        const Spacer(),
+        TextButton.icon(
+          onPressed: onDelete,
+          icon: const Icon(Icons.delete_outline_rounded),
+          label: const Text('삭제'),
+          style: TextButton.styleFrom(foregroundColor: const Color(0xFFFF7F88)),
         ),
       ],
     );
