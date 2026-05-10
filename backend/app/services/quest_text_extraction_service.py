@@ -12,7 +12,7 @@ from app.services.difficulty_rules import (
     exp_from_difficulty,
 )
 
-MIN_LINE_LENGTH = 3
+MIN_LINE_LENGTH = 2
 MAX_LINE_LENGTH = 80
 MAX_CANDIDATES = 8
 
@@ -25,6 +25,15 @@ EASY_KEYWORDS: tuple[str, ...] = (
     "review",
     "plan",
     "call",
+    "확인",
+    "정리",
+    "체크",
+    "구매",
+    "장보기",
+    "준비",
+    "예약",
+    "메일",
+    "답장",
 )
 
 HARD_KEYWORDS: tuple[str, ...] = (
@@ -36,6 +45,16 @@ HARD_KEYWORDS: tuple[str, ...] = (
     "presentation",
     "write",
     "study",
+    "발표",
+    "기획",
+    "분석",
+    "설계",
+    "리포트",
+    "보고서",
+    "프로젝트",
+    "정리본",
+    "강의",
+    "학습",
 )
 
 
@@ -115,6 +134,8 @@ def is_meaningful_candidate_line(line: str) -> bool:
         return False
     if re.fullmatch(r"[0-9\s:/.-]+", line):
         return False
+    if re.fullmatch(r"[ㄱ-ㅎㅏ-ㅣa-zA-Z0-9 ]{1,2}", line):
+        return False
     return True
 
 
@@ -123,7 +144,11 @@ def contains_any_keyword(value: str, keywords: Iterable[str]) -> bool:
 
 
 def _normalize_line(value: str) -> str:
-    normalized = re.sub(r"^\s*(?:[-*]|\d+[.)])\s*", "", value)
+    normalized = re.sub(
+        r"^\s*(?:[-*•·▪▫]|\d+[.)]|☐|☑|✓|✔|\[[ xX]?\])\s*",
+        "",
+        value,
+    )
     normalized = re.sub(r"\s+", " ", normalized)
     normalized = re.sub(r"[.,;:]+$", "", normalized)
     return normalized.strip()

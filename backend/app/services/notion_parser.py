@@ -57,7 +57,17 @@ def is_completed_page(page: dict) -> bool:
             return True
 
         label = read_select_like_name(raw_property).lower()
-        if any(word in label for word in ("done", "complete", "completed", "finished", "closed")):
+        if any(
+            word in label
+            for word in (
+                "done",
+                "complete",
+                "completed",
+                "finished",
+                "closed",
+                "완료",
+            )
+        ):
             return True
 
     return False
@@ -86,7 +96,7 @@ def read_title(properties: dict) -> str:
 def read_duration_minutes(properties: dict) -> int:
     property_value = find_property(
         properties,
-        ("duration", "minutes", "time", "estimate"),
+        ("duration", "minutes", "time", "estimate", "소요시간", "예상시간"),
     )
     if property_value is None:
         return 0
@@ -107,15 +117,15 @@ def read_difficulty(
 ) -> QuestDifficulty:
     property_value = find_property(
         properties,
-        ("difficulty", "level", "priority"),
+        ("difficulty", "level", "priority", "난이도", "우선순위"),
     )
     raw_value = read_plain_text(property_value).lower() if property_value else ""
 
-    if any(word in raw_value for word in ("easy", "low")):
+    if any(word in raw_value for word in ("easy", "low", "쉬움")):
         return QuestDifficulty.EASY
-    if any(word in raw_value for word in ("hard", "high")):
+    if any(word in raw_value for word in ("hard", "high", "어려움")):
         return QuestDifficulty.HARD
-    if any(word in raw_value for word in ("medium", "mid", "normal")):
+    if any(word in raw_value for word in ("medium", "mid", "normal", "보통")):
         return QuestDifficulty.NORMAL
 
     if duration_minutes <= 0:
@@ -130,7 +140,7 @@ def read_difficulty(
 def read_category(properties: dict, *, title: str) -> QuestCategory:
     property_value = find_property(
         properties,
-        ("category", "type", "tag", "area"),
+        ("category", "type", "tag", "area", "분류", "카테고리", "영역"),
     )
     raw_value = read_plain_text(property_value) if property_value else ""
     mapped = map_category(raw_value)
@@ -201,6 +211,14 @@ def parse_duration_minutes(raw_text: str) -> int:
         minutes = int(minutes_match.group(1)) if minutes_match else 0
         return hours * 60 + minutes
 
+    if "시간" in normalized:
+        hours_text = __import__("re").search(r"\d+", normalized)
+        return int(hours_text.group(0)) * 60 if hours_text is not None else 0
+
+    if "분" in normalized:
+        minutes_text = __import__("re").search(r"\d+", normalized)
+        return int(minutes_text.group(0)) if minutes_text is not None else 0
+
     first_number_match = __import__("re").search(r"\d+", normalized)
     if first_number_match is None:
         return 0
@@ -219,13 +237,30 @@ def map_category(value: str) -> QuestCategory | None:
         return QuestCategory.LIFE
     if any(word in normalized for word in ("home", "todo", "house", "clean")):
         return QuestCategory.HOME
+    if any(word in normalized for word in ("업무", "회사")):
+        return QuestCategory.WORK
+    if any(word in normalized for word in ("공부", "학습")):
+        return QuestCategory.STUDY
+    if any(word in normalized for word in ("운동", "건강")):
+        return QuestCategory.LIFE
+    if any(word in normalized for word in ("집", "정리")):
+        return QuestCategory.HOME
     return None
 
 
 def is_completion_property(normalized_name: str) -> bool:
     return any(
         token in normalized_name
-        for token in ("status", "done", "complete", "state", "finished", "closed")
+        for token in (
+            "status",
+            "done",
+            "complete",
+            "state",
+            "finished",
+            "closed",
+            "상태",
+            "완료",
+        )
     )
 
 
